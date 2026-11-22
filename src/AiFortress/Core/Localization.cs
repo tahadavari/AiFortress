@@ -2,11 +2,11 @@ using System.Globalization;
 using System.Reflection;
 using System.Text.Json;
 
-namespace ClaudeGuard;
+namespace AiFortress;
 
 internal sealed class Localization(string code, string name, bool rightToLeft, Dictionary<string, string> messages)
 {
-    private const string ResourcePrefix = "ClaudeGuard.Localization.";
+    private const string ResourcePrefix = "AiFortress.Localization.";
     private static readonly IReadOnlyList<Localization> Catalogs = LoadCatalogs();
 
     public static IReadOnlyList<Localization> Available => Catalogs;

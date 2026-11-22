@@ -4,20 +4,21 @@ using System.Management;
 using System.Net;
 using System.Net.Sockets;
 
-namespace ClaudeGuard;
+namespace AiFortress;
 
-internal sealed class Enforcer
+internal sealed class Enforcer(IReadOnlyList<ServiceProfile> profiles)
 {
+    // Keep the existing identifiers so upgrades can clean up rules written by ClaudeGuard.
     private const string FirewallRuleName = "ClaudeGuard-Block";
     private const string HostsBegin = "# >>> ClaudeGuard";
     private const string HostsEnd = "# <<< ClaudeGuard";
     private static readonly string HostsPath = Path.Combine(Environment.SystemDirectory, @"drivers\etc\hosts");
-    private static readonly string[] Domains =
-    [
-        "claude.ai", "www.claude.ai", "api.claude.ai", "claude.com", "www.claude.com",
-        "anthropic.com", "www.anthropic.com", "api.anthropic.com", "console.anthropic.com",
-        "claudeusercontent.com", "www.claudeusercontent.com", "statsig.anthropic.com"
-    ];
+    private readonly string[] _networkDomains = profiles.SelectMany(profile => profile.NetworkDomains)
+        .Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+    private readonly string[] _browserDomains = profiles.SelectMany(profile => profile.BrowserDomains)
+        .Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+    private readonly Func<string, string, bool>[] _processMatchers =
+        profiles.Select(profile => profile.MatchesProcess).OfType<Func<string, string, bool>>().ToArray();
 
     private bool? _firewall;
     private bool? _hosts;
@@ -26,9 +27,9 @@ internal sealed class Enforcer
 
     public async Task<bool> ReconcileAsync(AppConfig config, bool block, Action<string, object[]> log)
     {
-        var firewall = block && config.BlockFirewall;
-        var hosts = block && config.BlockHosts;
-        var browser = block && config.BlockBrowserPolicy;
+        var firewall = block && config.BlockFirewall && _networkDomains.Length > 0;
+        var hosts = block && config.BlockHosts && _networkDomains.Length > 0;
+        var browser = block && config.BlockBrowserPolicy && _browserDomains.Length > 0;
 
         // Remove a disabled hosts layer before resolving addresses for the firewall.
         if (!hosts)
@@ -38,16 +39,16 @@ internal sealed class Enforcer
             await UpdateAsync("LayerHosts", true, _hosts, UpdateHostsAsync, value => _hosts = value, log);
         await UpdateAsync("LayerBrowser", browser, _browser, value =>
         {
-            BrowserPolicy.Update(value);
+            BrowserPolicy.Update(value, _browserDomains);
             return Task.CompletedTask;
         }, value => _browser = value, log);
 
         var processesOk = true;
-        if (block && config.KillProcesses)
+        if (block && config.KillProcesses && _processMatchers.Length > 0)
         {
             try
             {
-                var killed = KillClaudeProcesses();
+                var killed = CloseTargetProcesses();
                 if (killed > 0)
                     log("ProcessesClosed", [killed]);
             }
@@ -82,11 +83,11 @@ internal sealed class Enforcer
         }
     }
 
-    private static int KillClaudeProcesses()
+    private int CloseTargetProcesses()
     {
         using var searcher = new ManagementObjectSearcher(
             new ManagementScope(@"root\cimv2"),
-            new ObjectQuery("SELECT ProcessId, Name, CommandLine FROM Win32_Process WHERE Name LIKE 'claude%.exe' OR Name = 'node.exe'"),
+            new ObjectQuery("SELECT ProcessId, Name, CommandLine FROM Win32_Process"),
             new System.Management.EnumerationOptions { ReturnImmediately = true, Timeout = TimeSpan.FromSeconds(5) });
         using var results = searcher.Get();
         int killed = 0;
@@ -96,7 +97,7 @@ internal sealed class Enforcer
             {
                 var pid = Convert.ToInt32(entry["ProcessId"]);
                 if (pid == Environment.ProcessId ||
-                    !IsClaudeProcess(entry["Name"] as string ?? "", entry["CommandLine"] as string ?? ""))
+                    !IsTargetProcess(entry["Name"] as string ?? "", entry["CommandLine"] as string ?? ""))
                     continue;
 
                 try
@@ -112,15 +113,10 @@ internal sealed class Enforcer
         return killed;
     }
 
-    internal static bool IsClaudeProcess(string name, string commandLine) =>
-        name.Equals("claude.exe", StringComparison.OrdinalIgnoreCase) ||
-        (name.StartsWith("claude-", StringComparison.OrdinalIgnoreCase) &&
-         name.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)) ||
-        (name.Equals("node.exe", StringComparison.OrdinalIgnoreCase) &&
-         (commandLine.Contains(@"@anthropic-ai\claude-code", StringComparison.OrdinalIgnoreCase) ||
-          commandLine.Contains("@anthropic-ai/claude-code", StringComparison.OrdinalIgnoreCase)));
+    internal bool IsTargetProcess(string name, string commandLine) =>
+        _processMatchers.Any(matches => matches(name, commandLine));
 
-    private static async Task UpdateFirewallAsync(bool enabled)
+    private async Task UpdateFirewallAsync(bool enabled)
     {
         var name = $"name={FirewallRuleName}";
         var existing = await FirewallCommand("show", "rule", name, "dir=out");
@@ -134,7 +130,7 @@ internal sealed class Enforcer
         }
 
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-        var addresses = (await Task.WhenAll(Domains.Select(domain => ResolveAsync(domain, timeout.Token))))
+        var addresses = (await Task.WhenAll(_networkDomains.Select(domain => ResolveAsync(domain, timeout.Token))))
             .SelectMany(ip => ip)
             .Where(ip => !IPAddress.IsLoopback(ip) && !ip.Equals(IPAddress.Any) && !ip.Equals(IPAddress.IPv6Any))
             .Distinct().ToArray();
@@ -168,7 +164,7 @@ internal sealed class Enforcer
         if (enabled)
         {
             lines.Add(HostsBegin);
-            lines.AddRange(Domains.Select(domain => $"0.0.0.0 {domain}"));
+            lines.AddRange(_networkDomains.Select(domain => $"0.0.0.0 {domain}"));
             lines.Add(HostsEnd);
         }
         if (!original.SequenceEqual(lines))

@@ -1,7 +1,7 @@
 using System.Globalization;
 using Microsoft.Win32;
 
-namespace ClaudeGuard;
+namespace AiFortress;
 
 internal static class BrowserPolicy
 {
@@ -11,9 +11,7 @@ internal static class BrowserPolicy
         ("Chrome", @"SOFTWARE\Policies\Google\Chrome\URLBlocklist"),
         ("Edge", @"SOFTWARE\Policies\Microsoft\Edge\URLBlocklist")
     ];
-    private static readonly string[] Entries = ["claude.ai", "claude.com", "anthropic.com", "claudeusercontent.com"];
-
-    public static void Update(bool enabled)
+    public static void Update(bool enabled, IReadOnlyList<string> entries)
     {
         using var machine = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, RegistryView.Registry64);
         foreach (var (name, path) in Browsers)
@@ -27,9 +25,10 @@ internal static class BrowserPolicy
             foreach (var slot in owned.GetValueNames())
             {
                 var entry = owned.GetValue(slot) as string;
-                if (enabled && Equals(policy?.GetValue(slot), entry))
+                var stillOwned = entry != null && Equals(policy?.GetValue(slot), entry);
+                if (enabled && stillOwned && entries.Contains(entry!, StringComparer.OrdinalIgnoreCase))
                     continue;
-                if (!enabled && entry != null && Equals(policy?.GetValue(slot), entry))
+                if (stillOwned)
                     policy!.DeleteValue(slot, throwOnMissingValue: false);
                 owned.DeleteValue(slot, throwOnMissingValue: false);
             }
@@ -41,7 +40,7 @@ internal static class BrowserPolicy
             var existing = occupied.Select(slot => policy.GetValue(slot)).OfType<string>()
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
             var next = 1;
-            foreach (var entry in Entries.Where(entry => !existing.Contains(entry)))
+            foreach (var entry in entries.Where(entry => !existing.Contains(entry)))
             {
                 string slot;
                 do { slot = (next++).ToString(CultureInfo.InvariantCulture); } while (!occupied.Add(slot));

@@ -7,13 +7,15 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
     <ApplicationManifest>app.manifest</ApplicationManifest>
-    <AssemblyName>ClaudeGuard</AssemblyName>
-    <RootNamespace>ClaudeGuard</RootNamespace>
+    <ApplicationIcon>Assets/AiFortress.ico</ApplicationIcon>
+    <AssemblyName>AiFortress</AssemblyName>
+    <RootNamespace>AiFortress</RootNamespace>
+    <Product>AiFortress</Product>
     <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="System.Management" Version="8.0.0" />
     <EmbeddedResource Include="Localization/*.json" />
-    <InternalsVisibleTo Include="ClaudeGuard.Tests" />
+    <InternalsVisibleTo Include="AiFortress.Tests" />
   </ItemGroup>
 </Project>

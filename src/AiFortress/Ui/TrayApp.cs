@@ -1,12 +1,13 @@
 using System.Drawing;
 
-namespace ClaudeGuard;
+namespace AiFortress;
 
 internal sealed class TrayApp : ApplicationContext
 {
     private readonly ConfigStore _store;
     private readonly Checker _checker;
     private readonly Func<AppConfig, bool, Action<string, object[]>, Task<bool>> _enforce;
+    private readonly string[] _serviceNames;
     private readonly NotifyIcon _tray;
     private readonly ContextMenuStrip _menu = new();
     private readonly System.Windows.Forms.Timer _timer = new() { Interval = 150 };
@@ -28,14 +29,24 @@ internal sealed class TrayApp : ApplicationContext
     private Localization Language => Localization.ForLanguage(_config.Language);
 
     internal TrayApp(ConfigStore store, Checker checker,
-        Func<AppConfig, bool, Action<string, object[]>, Task<bool>> enforce)
+        Func<AppConfig, bool, Action<string, object[]>, Task<bool>> enforce,
+        IReadOnlyList<ServiceProfile> profiles)
     {
         _store = store;
         _checker = checker;
         _enforce = enforce;
+        _serviceNames = profiles.Select(profile => profile.Name).ToArray();
         _config = store.Load(out var loadError);
-        _tray = new NotifyIcon { Text = "ClaudeGuard", ContextMenuStrip = _menu };
-        _tray.DoubleClick += (_, _) => Open();
+        _tray = new NotifyIcon { Text = "AiFortress", ContextMenuStrip = _menu };
+        _tray.MouseClick += (_, e) =>
+        {
+            if (e.Button != MouseButtons.Left || _exiting)
+                return;
+            if (_form?.Visible == true)
+                _form.Hide();
+            else
+                Open(Screen.FromPoint(Cursor.Position));
+        };
         RebuildMenu();
         SetIcon(Theme.Muted);
         _tray.Visible = true;
@@ -84,14 +95,18 @@ internal sealed class TrayApp : ApplicationContext
         _menu.Items.Add(language["Exit"], null, async (_, _) => await ExitAsync());
     }
 
-    internal MainForm Open()
+    internal void ShowFromLauncher()
     {
-        _form ??= new MainForm(_config, CheckNowAsync, SaveSettings, ApplyTimeZoneAsync);
+        if (!_exiting)
+            Open(Screen.PrimaryScreen);
+    }
+
+    internal MainForm Open(Screen? screen = null)
+    {
+        _form ??= new MainForm(_config, CheckNowAsync, SaveSettings, ApplyTimeZoneAsync, _serviceNames);
         RefreshPresentation();
         _form.RefreshActivity(_activity);
-        _form.Show();
-        _form.WindowState = FormWindowState.Normal;
-        _form.Activate();
+        _form.ShowFlyout(screen ?? Screen.FromPoint(Cursor.Position));
         return _form;
     }
 
@@ -237,7 +252,7 @@ internal sealed class TrayApp : ApplicationContext
             (key, color) = ("Unverified", Theme.Amber);
 
         SetIcon(color);
-        var tip = $"ClaudeGuard · {Language[key]}";
+        var tip = $"AiFortress · {Language[key]}";
         _tray.Text = tip[..Math.Min(tip.Length, 63)];
         _form?.RefreshStatus(_last, key, color, checking);
     }
@@ -247,7 +262,7 @@ internal sealed class TrayApp : ApplicationContext
         if (_iconColor == color)
             return;
         var previous = _icon;
-        _icon = ShieldIcon.Create(color);
+        _icon = FortressIcon.Create(color);
         _tray.Icon = _icon;
         _iconColor = color;
         previous?.Dispose();
@@ -271,7 +286,7 @@ internal sealed class TrayApp : ApplicationContext
             {
                 foreach (var entry in entries)
                     Log(entry.Key, entry.Arguments);
-                MessageBox.Show(Language["CleanupError"], "ClaudeGuard", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show(Language["CleanupError"], "AiFortress", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             }
         }
         finally

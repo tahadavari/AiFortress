@@ -1,13 +1,13 @@
-﻿
+
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{827E0CD3-B72D-47B6-A68D-7590B98EB39B}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ClaudeGuard", "src\ClaudeGuard\ClaudeGuard.csproj", "{6A2CEC10-E1F2-41B1-BA95-FDADE913251F}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AiFortress", "src\AiFortress\AiFortress.csproj", "{6A2CEC10-E1F2-41B1-BA95-FDADE913251F}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ClaudeGuard.Tests", "tests\ClaudeGuard.Tests\ClaudeGuard.Tests.csproj", "{24ACAD16-0BBB-46CB-B2AF-7E3C27384371}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AiFortress.Tests", "tests\AiFortress.Tests\AiFortress.Tests.csproj", "{24ACAD16-0BBB-46CB-B2AF-7E3C27384371}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

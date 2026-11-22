@@ -7,6 +7,6 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="../../src/ClaudeGuard/ClaudeGuard.csproj" />
+    <ProjectReference Include="../../src/AiFortress/AiFortress.csproj" />
   </ItemGroup>
 </Project>

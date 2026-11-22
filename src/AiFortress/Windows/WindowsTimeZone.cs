@@ -1,4 +1,4 @@
-namespace ClaudeGuard;
+namespace AiFortress;
 
 internal static class WindowsTimeZone
 {

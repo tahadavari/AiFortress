@@ -22,9 +22,9 @@ jobs:
       - name: Build and test
         shell: pwsh
         run: |
-          dotnet build ClaudeGuard.sln -c Release
+          dotnet build AiFortress.sln -c Release
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
-          dotnet run --project tests/ClaudeGuard.Tests -c Release --no-build
+          dotnet run --project tests/AiFortress.Tests -c Release --no-build
       - name: Package the tagged version
         if: github.ref_type == 'tag'
         shell: pwsh
@@ -56,7 +56,7 @@ jobs:
         shell: bash
         run: |
           version="${GITHUB_REF_NAME#v}"
-          archive="ClaudeGuard-$version-win-x64.zip"
+          archive="AiFortress-$version-win-x64.zip"
           (cd dist && sha256sum --check "$archive.sha256")
           flags=(--verify-tag --generate-notes)
           if [[ "$version" == *-* ]]; then

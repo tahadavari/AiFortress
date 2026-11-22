@@ -12,10 +12,10 @@ if (-not $OutputDirectory) {
 }
 $output = (New-Item -ItemType Directory -Path $OutputDirectory -Force).FullName
 $temporaryRoot = (Get-Item -LiteralPath ([IO.Path]::GetTempPath())).FullName
-$stage = (New-Item -ItemType Directory -Path (Join-Path $temporaryRoot "ClaudeGuard-$([guid]::NewGuid())")).FullName
+$stage = (New-Item -ItemType Directory -Path (Join-Path $temporaryRoot "AiFortress-$([guid]::NewGuid())")).FullName
 
 try {
-    $project = Join-Path $repo 'src\ClaudeGuard\ClaudeGuard.csproj'
+    $project = Join-Path $repo 'src\AiFortress\AiFortress.csproj'
     $publish = Join-Path $stage 'publish'
     dotnet publish $project -c Release -r win-x64 --self-contained -o $publish `
         -p:Version=$Version -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true `
@@ -24,14 +24,16 @@ try {
 
     $layout = New-Item -ItemType Directory -Path (Join-Path $stage 'package')
     $app = New-Item -ItemType Directory -Path (Join-Path $layout.FullName 'app')
-    Copy-Item -LiteralPath (Join-Path $publish 'ClaudeGuard.exe') -Destination $app.FullName
+    Copy-Item -LiteralPath (Join-Path $publish 'AiFortress.exe') -Destination $app.FullName
     foreach ($file in 'install.bat', 'uninstall.bat', 'setup.ps1') {
         Copy-Item -LiteralPath (Join-Path $repo "packaging\$file") -Destination $layout.FullName
     }
     Copy-Item -LiteralPath (Join-Path $repo 'README.md') -Destination $layout.FullName
     Copy-Item -LiteralPath (Join-Path $repo 'README.fa.md') -Destination $layout.FullName
+    $docs = New-Item -ItemType Directory -Path (Join-Path $layout.FullName 'docs')
+    Copy-Item -LiteralPath (Join-Path $repo 'docs\aifortress-icon.png') -Destination $docs.FullName
 
-    $name = "ClaudeGuard-$Version-win-x64.zip"
+    $name = "AiFortress-$Version-win-x64.zip"
     $zip = Join-Path $stage $name
     $inputs = Get-ChildItem -LiteralPath $layout.FullName | Select-Object -ExpandProperty FullName
     Compress-Archive -LiteralPath $inputs -DestinationPath $zip -CompressionLevel Optimal
@@ -43,7 +45,7 @@ try {
 finally {
     $resolved = Get-Item -LiteralPath $stage -ErrorAction SilentlyContinue
     if ($resolved -and $resolved.Parent.FullName -eq $temporaryRoot -and
-        $resolved.Name -match '\AClaudeGuard-[0-9a-f-]{36}\z') {
+        $resolved.Name -match '\AAiFortress-[0-9a-f-]{36}\z') {
         Remove-Item -LiteralPath $resolved.FullName -Recurse -Force
     }
 }

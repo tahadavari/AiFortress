@@ -1,7 +1,7 @@
 using System.Net;
 using System.Text.Json;
 
-namespace ClaudeGuard;
+namespace AiFortress;
 
 internal enum CheckState { Unknown, Ok, Violation }
 
@@ -19,10 +19,7 @@ internal sealed record CheckResult(
 
 internal sealed class Checker(HttpClient http, Func<string> readTimeZone)
 {
-    private static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(6) };
     private static readonly string[] Providers = ["https://api.country.is/", "https://ipinfo.io/json"];
-
-    public static Checker Create() => new(Http, WindowsTimeZone.CurrentId);
 
     public async Task<CheckResult> RunAsync(AppConfig config, CancellationToken cancellationToken)
     {

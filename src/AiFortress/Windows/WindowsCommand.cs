@@ -1,6 +1,6 @@
 using System.Diagnostics;
 
-namespace ClaudeGuard;
+namespace AiFortress;
 
 internal static class WindowsCommand
 {

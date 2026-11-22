@@ -1,6 +1,6 @@
 using System.Text.Json;
 
-namespace ClaudeGuard;
+namespace AiFortress;
 
 internal sealed class AppConfig
 {
@@ -63,10 +63,12 @@ internal sealed class AppConfig
     }
 }
 
-internal sealed class ConfigStore(string path)
+internal sealed class ConfigStore(string path, string? previousPath = null)
 {
+    private static string ProgramData => Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData);
     public static string DefaultPath { get; } = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "ClaudeGuard", "config.json");
+        ProgramData, "AiFortress", "config.json");
+    public static string LegacyPath { get; } = Path.Combine(ProgramData, "ClaudeGuard", "config.json");
 
     private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
 
@@ -76,7 +78,7 @@ internal sealed class ConfigStore(string path)
         error = null;
         try
         {
-            config = JsonSerializer.Deserialize<AppConfig>(File.ReadAllText(path)) ?? config;
+            config = JsonSerializer.Deserialize<AppConfig>(Read()) ?? config;
         }
         catch (Exception ex) when (ex is FileNotFoundException or DirectoryNotFoundException)
         {
@@ -89,6 +91,15 @@ internal sealed class ConfigStore(string path)
 
         config.Normalize();
         return config;
+    }
+
+    private string Read()
+    {
+        try { return File.ReadAllText(path); }
+        catch (Exception ex) when (previousPath != null && (ex is FileNotFoundException or DirectoryNotFoundException))
+        {
+            return File.ReadAllText(previousPath);
+        }
     }
 
     public void Save(AppConfig config)
