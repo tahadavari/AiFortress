@@ -28,12 +28,18 @@ jobs:
       - name: Package the tagged version
         if: github.ref_type == 'tag'
         shell: pwsh
-        run: ./scripts/publish.ps1 -Version $env:GITHUB_REF_NAME.Substring(1)
+        run: ./scripts/publish.ps1 -Version $env:GITHUB_REF_NAME.Substring(1) -OutputDirectory artifacts/release
+      - name: Smoke test the installer
+        if: github.ref_type == 'tag'
+        shell: pwsh
+        run: ./scripts/smoke-installer.ps1 -Version $env:GITHUB_REF_NAME.Substring(1)
       - uses: actions/upload-artifact@v4
         if: github.ref_type == 'tag'
         with:
           name: windows-release
-          path: artifacts/release/*
+          path: |
+            artifacts/release/*.exe
+            artifacts/release/SHA256SUMS.txt
           if-no-files-found: error
 
   release:
@@ -56,10 +62,12 @@ jobs:
         shell: bash
         run: |
           version="${GITHUB_REF_NAME#v}"
-          archive="AiFortress-$version-win-x64.zip"
-          (cd dist && sha256sum --check "$archive.sha256")
+          installer="AiFortress-$version-setup-win-x64.exe"
+          portable="AiFortress-$version-portable-win-x64.exe"
+          (cd dist && sha256sum --strict --check SHA256SUMS.txt)
           flags=(--verify-tag --generate-notes)
           if [[ "$version" == *-* ]]; then
             flags+=(--prerelease)
           fi
-          gh release create "$GITHUB_REF_NAME" "${flags[@]}" "dist/$archive" "dist/$archive.sha256"
+          gh release create "$GITHUB_REF_NAME" "${flags[@]}" \
+            "dist/$installer#Windows x64 installer" "dist/$portable#Windows x64 portable" "dist/SHA256SUMS.txt"

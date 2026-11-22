@@ -6,13 +6,21 @@
 
 AiFortress is a Windows notification-area app that checks your public IP country and Windows time zone against rules you choose. **The current version supports Claude only**, including Claude Desktop, Claude Code, and Claude websites.
 
-## Install
+## Screenshots
 
-1. Download `AiFortress-<version>-win-x64.zip` from this repository’s **Releases** and extract it. The package includes the .NET runtime.
-2. Right-click `install.bat` and select **Run as administrator**. The installer starts the app and adds a scheduled task for the account running the installer.
-3. Click the fortress icon in the Windows notification area to open the panel above the taskbar. You can also run `app/AiFortress.exe` from the extracted ZIP for a session without installing it.
+<img src="docs/screenshots/en-overview.png" width="265" alt="AiFortress overview showing protection, public IP and Windows time zone">
+<img src="docs/screenshots/en-location.png" width="265" alt="AiFortress Location tab with country and Windows time zone controls">
 
-The app requires administrator privileges for its Windows protection layers. The release targets Windows 10 and 11 on x64.
+## Download for Windows
+
+Choose a file from the [latest release](https://github.com/tahadavari/AiFortress/releases/latest).
+
+| File | How to use it |
+| --- | --- |
+| `AiFortress-<version>-setup-win-x64.exe` | Run the setup wizard to install into Program Files and add a Start menu shortcut. The wizard offers startup at sign-in. |
+| `AiFortress-<version>-portable-win-x64.exe` | Run the EXE directly. This edition needs no installation and creates no startup task. |
+
+Both editions are single-file downloads with the .NET runtime included and target Windows 10 and 11 on x64. Accept the UAC prompt to let AiFortress apply its Windows protection rules. Click the fortress icon in the notification area to reopen the panel. The release includes `SHA256SUMS.txt` for checking either download.
 
 ## Use
 
@@ -31,21 +39,21 @@ AiFortress queries Country.is and uses IPinfo as an HTTPS fallback to determine 
 
 ## Uninstall
 
-Exit any portable copy, then run the extracted release’s `uninstall.bat` as administrator. It removes the installed executable, scheduled task and rules tracked by AiFortress. The settings file is kept for future installations. If you upgraded from an older build that wrote untracked Chrome or Edge URLBlocklist values, check those browser policies for leftover Claude entries.
+Exit any portable copy, then remove the installed edition from **Settings → Apps**. This removes the installed files, shortcut, startup task and protection rules tracked by AiFortress. For Portable, choose **Exit** in the tray menu, then delete the EXE. Both editions keep saved preferences in ProgramData. If you upgraded from an older build that wrote untracked Chrome or Edge URLBlocklist values, check those browser policies for leftover Claude entries.
 
 ## Build and release
 
-Use the .NET 8 SDK and PowerShell on Windows.
+Use the .NET 8 SDK and PowerShell on Windows. Packaging the installer also requires [Inno Setup 6](https://jrsoftware.org/isdl.php).
 
 ```powershell
 dotnet build AiFortress.sln -c Release
 dotnet run --project tests/AiFortress.Tests -c Release --no-build
-./scripts/publish.ps1 -Version 1.0.0
+./scripts/publish.ps1 -Version 1.1.0
 ```
 
-The publishing script writes the self-contained ZIP and SHA-256 checksum to `artifacts/release/`. The regression checks exercise configuration migration, Check Now, error recovery, and both UI languages without modifying Windows protection settings.
+The publishing script writes the installer, portable EXE and `SHA256SUMS.txt` to `artifacts/release/<version>/`. The app regression checks exercise settings migration, Check Now, error recovery and both UI languages. The tagged workflow also installs and uninstalls the setup EXE on the Windows runner before publishing.
 
-The GitHub workflow builds and tests pushes and pull requests. Push a version tag such as `v1.0.0` to publish the ZIP and checksum to GitHub Releases. Tags with a suffix such as `v1.0.0-rc.1` create prereleases. [Release workflow](.github/workflows/release.yml)
+The GitHub workflow builds and tests pushes and pull requests. Push a version tag such as `v1.1.0` to publish both EXEs and the checksums to GitHub Releases. Tags with a suffix such as `v1.1.0-rc.1` create prereleases. [Release workflow](.github/workflows/release.yml)
 
 | Directory | Contents |
 | --- | --- |
