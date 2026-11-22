@@ -1,0 +1,65 @@
+name: Build and release
+
+on:
+  push:
+    branches: ['**']
+    tags: ['v*']
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-2025
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '8.0.x'
+      - name: Build and test
+        shell: pwsh
+        run: |
+          dotnet build ClaudeGuard.sln -c Release
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          dotnet run --project tests/ClaudeGuard.Tests -c Release --no-build
+      - name: Package the tagged version
+        if: github.ref_type == 'tag'
+        shell: pwsh
+        run: ./scripts/publish.ps1 -Version $env:GITHUB_REF_NAME.Substring(1)
+      - uses: actions/upload-artifact@v4
+        if: github.ref_type == 'tag'
+        with:
+          name: windows-release
+          path: artifacts/release/*
+          if-no-files-found: error
+
+  release:
+    if: github.ref_type == 'tag'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    concurrency:
+      group: release-${{ github.ref }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: windows-release
+          path: dist
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        shell: bash
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          archive="ClaudeGuard-$version-win-x64.zip"
+          (cd dist && sha256sum --check "$archive.sha256")
+          flags=(--verify-tag --generate-notes)
+          if [[ "$version" == *-* ]]; then
+            flags+=(--prerelease)
+          fi
+          gh release create "$GITHUB_REF_NAME" "${flags[@]}" "dist/$archive" "dist/$archive.sha256"
